@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Docs</title>
+    <link rel="icon" href="favicon2.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000;
+            --text-grey: #444;
+            --text-light-grey: #888;
+            --text-white: #fff;
+            --live-red: #ff0000;
+            --outline: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+        }
+
+        body, html {
+            background-color: var(--bg-color);
+            color: var(--text-light-grey);
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            transition: background-color 0.1s ease;
+        }
+
+        #game-container {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            gap: 20px;
+        }
+
+        #game-container.visible {
+            display: flex;
+            opacity: 1;
+        }
+
+        button, .actor-label {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: color 0.3s ease, transform 0.2s ease, opacity 0.3s;
+            outline: none;
+            color: var(--text-light-grey);
+            font-family: 'Bebas Neue', sans-serif;
+            text-align: center;
+        }
+
+        button:hover:not(:disabled), .actor-label:hover {
+            color: var(--text-white);
+        }
+
+        #start-button {
+            font-size: 5rem;
+            letter-spacing: 5px;
+        }
+
+        .actor-label {
+            font-size: 4rem;
+            letter-spacing: 3px;
+            width: 100%;
+        }
+
+        .active-turn {
+            color: var(--text-white);
+            text-decoration: underline;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        #game-msg {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            color: var(--text-white);
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            width: 100%;
+        }
+
+        #shells-display {
+            font-size: 6rem;
+            display: flex;
+            gap: 30px;
+        }
+
+        .live-count { color: var(--live-red); text-shadow: var(--outline); }
+        .blank-count { color: var(--text-grey); text-shadow: var(--outline); }
+
+        #back-out {
+            position: absolute; bottom: 30px; left: 30px;
+            font-size: 1.5rem; letter-spacing: 1px;
+        }
+
+        #stats {
+            position: absolute; top: 25px; right: 35px;
+            font-size: 1rem; font-weight: bold; color: var(--text-grey);
+        }
+
+        .hidden { display: none !important; }
+        .show-msg { opacity: 1 !important; }
+
+        #start-screen { display: flex; }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shake-effect {
+            animation: shake 0.4s;
+            animation-iteration-count: 1;
+        }
+
+        .flash-red {
+            background-color: rgba(255, 0, 0, 0.3) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <button id="start-button">START</button>
+    </div>
+
+    <div id="game-container">
+        <div id="stats">WINS: 0 | LOSSES: 0</div>
+        
+        <div id="dealer" class="actor-label">DEALER</div>
+        
+        <div id="game-msg"></div>
+
+        <div id="shells-display"></div>
+        
+        <div id="player" class="actor-label">PLAYER</div>
+
+        <button id="back-out">BACK OUT</button>
+    </div>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const gameContainer = document.getElementById('game-container');
+        const dealerBtn = document.getElementById('dealer');
+        const playerBtn = document.getElementById('player');
+        const shellsDisplay = document.getElementById('shells-display');
+        const backOutBtn = document.getElementById('back-out');
+        const statsDisplay = document.getElementById('stats');
+        const gameMsg = document.getElementById('game-msg');
+
+        let lives = 0, blanks = 0, total = 0, canBackOut = true;
+        let wins = parseInt(localStorage.getItem('roulette_wins')) || 0;
+        let losses = parseInt(localStorage.getItem('roulette_losses')) || 0;
+        let isPlayerTurn = true;
+        let isProcessing = false;
+
+        function updateStatsUI() {
+            statsDisplay.textContent = `WINS: ${wins} | LOSSES: ${losses}`;
+            localStorage.setItem('roulette_wins', wins);
+            localStorage.setItem('roulette_losses', losses);
+        }
+
+        function triggerLiveEffects() {
+            gameContainer.classList.add('shake-effect');
+            document.body.classList.add('flash-red');
+            
+            setTimeout(() => {
+                gameContainer.classList.remove('shake-effect');
+                document.body.classList.remove('flash-red');
+            }, 400);
+        }
+
+        function showMessage(text, duration = 1200, isLive = false) {
+            return new Promise(resolve => {
+                gameMsg.textContent = text;
+                gameMsg.classList.add('show-msg');
+                
+                if (isLive) triggerLiveEffects();
+
+                setTimeout(() => {
+                    gameMsg.classList.remove('show-msg');
+                    setTimeout(resolve, 300);
+                }, duration);
+            });
+        }
+
+        function initRound() {
+            lives = 1;
+            blanks = Math.floor(Math.random() * 4) + 1;
+            total = lives + blanks;
+            canBackOut = true;
+            isPlayerTurn = true;
+            isProcessing = false;
+            backOutBtn.classList.remove('hidden');
+            updateTurnVisuals();
+            updateShellsUI();
+        }
+
+        function updateShellsUI() {
+            shellsDisplay.innerHTML = `
+                <span class="live-count">${lives}L</span>
+                <span class="blank-count">${blanks}B</span>
+            `;
+        }
+
+        function updateTurnVisuals() {
+            if (isPlayerTurn) {
+                playerBtn.classList.add('active-turn');
+                dealerBtn.classList.remove('active-turn');
+            } else {
+                dealerBtn.classList.add('active-turn');
+                playerBtn.classList.remove('active-turn');
+            }
+        }
+
+        async function shoot(target) {
+            if (isProcessing || !isPlayerTurn || gameMsg.classList.contains('show-msg')) return;
+            
+            isProcessing = true;
+            canBackOut = false;
+            backOutBtn.classList.add('hidden');
+
+            const isLive = Math.random() < (lives / total);
+
+            if (isLive) {
+                if (target === 'dealer') {
+                    wins++;
+                    await showMessage("BANG! DEALER DOWN", 1200, true);
+                } else {
+                    losses++;
+                    await showMessage("BANG! YOU ARE DOWN", 1200, true);
+                }
+                updateStatsUI();
+                initRound();
+            } else {
+                blanks--;
+                total--;
+                updateShellsUI();
+
+                if (target === 'player') {
+                    await showMessage("CLICK... BLANK. BONUS TURN!");
+                    isProcessing = false;
+                } else {
+                    await showMessage("CLICK... BLANK. DEALER'S TURN.");
+                    isPlayerTurn = false;
+                    updateTurnVisuals();
+                    setTimeout(dealerAI, 1000);
+                }
+            }
+        }
+
+        async function dealerAI() {
+            if (total === 0) { initRound(); return; }
+            
+            await showMessage("DEALER IS DECIDING...", 800);
+            
+            const choice = Math.random() < 0.5 ? 'self' : 'player';
+            const isLive = Math.random() < (lives / total);
+
+            if (choice === 'self') {
+                await showMessage("DEALER POINTS AT ITSELF...");
+                if (isLive) {
+                    wins++;
+                    await showMessage("BANG! DEALER DOWN", 1200, true);
+                    updateStatsUI();
+                    initRound();
+                } else {
+                    blanks--;
+                    total--;
+                    updateShellsUI();
+                    await showMessage("CLICK... BLANK. DEALER GOES AGAIN!");
+                    setTimeout(dealerAI, 1000);
+                }
+            } else {
+                await showMessage("DEALER POINTS AT YOU...");
+                if (isLive) {
+                    losses++;
+                    await showMessage("BANG! YOU ARE DOWN", 1200, true);
+                    updateStatsUI();
+                    initRound();
+                } else {
+                    blanks--;
+                    total--;
+                    updateShellsUI();
+                    await showMessage("CLICK... BLANK. YOUR TURN.");
+                    isPlayerTurn = true;
+                    isProcessing = false;
+                    updateTurnVisuals();
+                }
+            }
+        }
+
+        startButton.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            gameContainer.style.display = 'flex';
+            setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
+            updateStatsUI();
+            initRound();
+        });
+
+        dealerBtn.addEventListener('click', () => shoot('dealer'));
+        playerBtn.addEventListener('click', () => shoot('player'));
+        
+        backOutBtn.addEventListener('click', () => {
+            if (canBackOut) {
+                gameContainer.classList.remove('visible');
+                setTimeout(() => {
+                    gameContainer.style.display = 'none';
+                    startScreen.classList.remove('hidden');
+                }, 800);
+            }
+        });
+    </script>
+</body>
+</html>
