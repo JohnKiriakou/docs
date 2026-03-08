@@ -6,6 +6,7 @@
     <title>Google Docs</title>
     <link rel="icon" href="favicon2.ico">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-color: #000;
@@ -259,6 +260,74 @@
 
 .high-risk { color: var(--live-red) !important; text-shadow: 0 0 10px var(--live-red); }
 .med-risk { color: var(--yellow) !important; text-shadow: 0 0 10px var(--yellow); }
+
+#multiplayer-button { 
+        font-size: 2.5rem; 
+        letter-spacing: 3px; 
+        margin-top: 10px; 
+    }
+
+    #multi-menu {
+        display: none;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .menu-btn { font-size: 3rem; letter-spacing: 3px; }
+
+    #join-input {
+        background: transparent;
+        border: 2px solid var(--text-grey);
+        color: var(--text-white);
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 2rem;
+        text-align: center;
+        padding: 10px;
+        text-transform: uppercase;
+        outline: none;
+    }
+
+    #join-input::placeholder { color: var(--text-grey); }
+
+    #lobby-status {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 1.5rem;
+        color: var(--yellow);
+        margin-top: 10px;
+    }
+
+    .copy-hint { font-size: 0.8rem; color: var(--text-grey); margin-top: -10px; }
+
+#turn-indicator {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 4rem;
+    color: var(--text-white);
+    letter-spacing: 5px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    margin-bottom: -20px;
+}
+
+#turn-indicator.visible {
+    opacity: 1;
+    animation: pulse 1.5s infinite;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#disable-animations {
+    margin: 0;
+    cursor: pointer;
+}
+
     </style>
 </head>
 <body>
@@ -266,9 +335,22 @@
     <div id="start-screen">
         <button id="stats-toggle">STATS</button>
         <button id="start-button">START</button>
+        <button id="multiplayer-button">MULTIPLAYER</button>
+    
+    <div id="multi-menu">
+        <button id="host-btn" class="menu-btn">HOST</button>
+        <button id="join-btn" class="menu-btn">JOIN</button>
+        <div id="join-container" class="hidden">
+            <input type="text" id="join-input" maxlength="4" placeholder="ENTER CODE">
+            <button id="confirm-join" class="menu-btn" style="font-size: 2rem;">GO</button>
+        </div>
+        <div id="lobby-status"></div>
+        <button id="multi-back" style="font-size: 1.5rem; margin-top: 20px;">BACK</button>
+    </div>
     </div>
 
     <div id="game-container">
+        <div id="turn-indicator">YOUR TURN</div>
         <div id="luck-meter">LUCK: 0%</div>
         <div id="stats">WINS: 0 | LOSSES: 0</div>
         <div id="dealer" class="actor-label">DEALER</div>
@@ -294,248 +376,340 @@
     </div>
 
     <script>
-        const startScreen = document.getElementById('start-screen');
-        const startButton = document.getElementById('start-button');
-        const gameContainer = document.getElementById('game-container');
-        const dealerBtn = document.getElementById('dealer');
-        const playerBtn = document.getElementById('player');
-        const shellsDisplay = document.getElementById('shells-display');
-        const backOutBtn = document.getElementById('back-out');
-        const statsDisplay = document.getElementById('stats');
-        const gameMsg = document.getElementById('game-msg');
-        const disableAnimationsCheck = document.getElementById('disable-animations');
-        const statsToggle = document.getElementById('stats-toggle');
-        const statsOverlay = document.getElementById('stats-overlay');
-        const closeStats = document.getElementById('close-stats');
-        const totalWinsText = document.getElementById('total-wins');
-        const totalLossesText = document.getElementById('total-losses');
-        const winRateText = document.getElementById('win-rate');
-        const luckMeter = document.getElementById('luck-meter');
-        let currentRound = 1;
-        const roundCounter = document.getElementById('round-counter');
+    const startScreen = document.getElementById('start-screen');
+    const startButton = document.getElementById('start-button');
+    const gameContainer = document.getElementById('game-container');
+    const dealerBtn = document.getElementById('dealer');
+    const playerBtn = document.getElementById('player');
+    const shellsDisplay = document.getElementById('shells-display');
+    const backOutBtn = document.getElementById('back-out');
+    const statsDisplay = document.getElementById('stats');
+    const gameMsg = document.getElementById('game-msg');
+    const disableAnimationsCheck = document.getElementById('disable-animations');
+    const statsToggle = document.getElementById('stats-toggle');
+    const statsOverlay = document.getElementById('stats-overlay');
+    const closeStats = document.getElementById('close-stats');
+    const totalWinsText = document.getElementById('total-wins');
+    const totalLossesText = document.getElementById('total-losses');
+    const winRateText = document.getElementById('win-rate');
+    const luckMeter = document.getElementById('luck-meter');
+    const roundCounter = document.getElementById('round-counter');
+    const multiBtn = document.getElementById('multiplayer-button');
+    const multiMenu = document.getElementById('multi-menu');
+    const hostBtn = document.getElementById('host-btn');
+    const joinBtn = document.getElementById('join-btn');
+    const joinContainer = document.getElementById('join-container');
+    const joinInput = document.getElementById('join-input');
+    const confirmJoin = document.getElementById('confirm-join');
+    const lobbyStatus = document.getElementById('lobby-status');
+    const multiBack = document.getElementById('multi-back');
+    const turnIndicator = document.getElementById('turn-indicator');
 
-        disableAnimationsCheck.checked = localStorage.getItem('roulette_disable_anims') === 'true';
+    // --- GAME STATE ---
+    let peer = null;
+    let conn = null;
+    let isMultiplayer = false;
+    let isHost = false;
+    let currentRound = 1;
+    let lives = 0, blanks = 0, total = 0, canBackOut = true;
+    let wins = parseInt(localStorage.getItem('roulette_wins')) || 0;
+    let losses = parseInt(localStorage.getItem('roulette_losses')) || 0;
+    let isPlayerTurn = true;
+    let isProcessing = false;
 
-        let lives = 0, blanks = 0, total = 0, canBackOut = true;
-        let wins = parseInt(localStorage.getItem('roulette_wins')) || 0;
-        let losses = parseInt(localStorage.getItem('roulette_losses')) || 0;
-        let isPlayerTurn = true;
-        let isProcessing = false;
+    disableAnimationsCheck.checked = localStorage.getItem('roulette_disable_anims') === 'true';
 
-        function updateStatsUI() {
-            statsDisplay.textContent = `WINS: ${wins} | LOSSES: ${losses}`;
-            localStorage.setItem('roulette_wins', wins);
-            localStorage.setItem('roulette_losses', losses);
-        }
-
-        function triggerLiveEffects(colorClass = 'flash-red') {
-            if (disableAnimationsCheck.checked) return;
-            gameContainer.classList.add('shake-effect');
-            document.body.classList.add(colorClass);
-            setTimeout(() => {
-                gameContainer.classList.remove('shake-effect');
-                document.body.classList.remove(colorClass);
-            }, 400);
-        }
-
-        function triggerBlankEffects() {
-            if (disableAnimationsCheck.checked) return;
-
-            gameContainer.classList.add('blank-shake-effect');
-
-            setTimeout(() => {
-                gameContainer.classList.remove('blank-shake-effect');
-            }, 150);
-        }
-
-        function showMessage(text, duration = 1200, isLive = false, color = 'flash-red') {
-            return new Promise(resolve => {
-                gameMsg.textContent = text;
-                gameMsg.classList.add('show-msg');
-                if (isLive) triggerLiveEffects(color);
-                setTimeout(() => {
-                    gameMsg.classList.remove('show-msg');
-                    setTimeout(resolve, 300);
-                }, duration);
-            });
-        }
-
-        function showStatPop(type) {
-            const statsRect = statsDisplay.getBoundingClientRect();
-            const pop = document.createElement('div');
-            pop.textContent = "+1";
-            pop.className = `stat-pop ${type === 'win' ? 'pop-win' : 'pop-loss'}`;
-            const horizontalOffset = type === 'win' ? 30 : statsRect.width - 30;
-            pop.style.left = (statsRect.left + horizontalOffset) + 'px';
-            pop.style.top = (statsRect.bottom + 5) + 'px';
-            document.body.appendChild(pop);
-            setTimeout(() => pop.remove(), 1000);
-        }
-
-        function initRound() {
-            lives = 1;
-            blanks = Math.floor(Math.random() * 4) + 1;
-            total = lives + blanks;
-            canBackOut = true;
-            isPlayerTurn = true;
-            isProcessing = false;
-            
-            roundCounter.textContent = `ROUND #${currentRound}`;
-            
-            backOutBtn.classList.remove('hidden');
-            updateTurnVisuals();
-            updateShellsUI();
-        }
-
-        function updateShellsUI() {
-            shellsDisplay.innerHTML = `<span class="live-count">${lives}L</span><span class="blank-count">${blanks}B</span>`;
-        }
-
-        function updateTurnVisuals() {
-            if (isPlayerTurn) {
-                playerBtn.classList.add('active-turn');
-                dealerBtn.classList.remove('active-turn');
-            } else {
-                dealerBtn.classList.add('active-turn');
-                playerBtn.classList.remove('active-turn');
-            }
-        }
-
-        async function shoot(target) {
-            if (isProcessing || !isPlayerTurn || gameMsg.classList.contains('show-msg')) return;
-            
-            canBackOut = false;
-            backOutBtn.classList.add('hidden');
-            
-            const isLive = Math.random() < (lives / total);
-
-            if (isLive) {
-                isProcessing = true;
-                
-                lives--; 
-                total--; 
-                updateShellsUI(); 
-
-                if (target === 'dealer') {
-                    wins++; showStatPop('win');
-                    await showMessage("LIVE. YOU WIN", 1200, true, 'flash-green');
-                } else {
-                    losses++; showStatPop('loss');
-                    await showMessage(total === 0 && lives === 0 ? "WHY?" : "LIVE. YOU LOSE.", total === 0 && lives === 0 ? 2200 : 1200, true, 'flash-red');
-                }
-                updateStatsUI();
-                currentRound++;
-                initRound();
-            } else {
-                blanks--; total--; updateShellsUI();
-                triggerBlankEffects();
-                
-                if (target === 'player') {
-                    showMessage("BLANK. YOUR TURN.", 600); 
-                    isProcessing = false; 
-                } else {
-                    isProcessing = true; 
-                    await showMessage("BLANK. DEALER'S TURN.", 1000);
-                    isPlayerTurn = false; 
-                    updateTurnVisuals();
-                    setTimeout(dealerAI, 1000);
-                }
-            }
-        }
-
-        async function dealerAI() {
-            if (total === 0) { initRound(); return; }
-            await showMessage("DEALER IS DECIDING...", 800);
-            const choice = Math.random() < 0.5 ? 'self' : 'player';
-            const isLive = Math.random() < (lives / total);
-
-            if (choice === 'self') {
-                await showMessage("DEALER POINTS AT ITSELF...");
-                if (isLive) {
-                    lives--; total--; updateShellsUI();
-                    wins++; showStatPop('win');
-                    await showMessage("LIVE. YOU WIN", 1200, true, 'flash-green');
-                    updateStatsUI(); currentRound++; initRound();
-                } else {
-                    blanks--; total--; updateShellsUI();
-                    triggerBlankEffects();
-                    await showMessage("BLANK. DEALER'S TURN.");
-                    setTimeout(dealerAI, 1000);
-                }
-            } else {
-                await showMessage("DEALER POINTS AT YOU...");
-                if (isLive) {
-                    lives--; total--; updateShellsUI();
-                    losses++; showStatPop('loss');
-                    await showMessage("LIVE. YOU LOSE.", 1200, true, 'flash-red');
-                    updateStatsUI(); initRound();
-                } else {
-                    blanks--; total--; updateShellsUI();
-                    triggerBlankEffects();
-                    await showMessage("BLANK. YOUR TURN.");
-                    isPlayerTurn = true; isProcessing = false; updateTurnVisuals();
-                }
-            }
-        }
-
-        startButton.addEventListener('click', () => {
-            currentRound = 1;
-            roundCounter.textContent = `ROUND #${currentRound}`;
-            startScreen.classList.add('hidden');
-            gameContainer.style.display = 'flex';
-            setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
-            updateStatsUI();
-            initRound();
-        });
-
-        dealerBtn.addEventListener('click', () => shoot('dealer'));
-        playerBtn.addEventListener('click', () => shoot('player'));
-        
-        backOutBtn.addEventListener('click', () => {
-            if (canBackOut) {
-                gameContainer.classList.remove('visible');
-                setTimeout(() => {
-                    gameContainer.style.display = 'none';
-                    startScreen.classList.remove('hidden');
-                }, 800);
-            }
-        });
-
-        disableAnimationsCheck.addEventListener('change', () => {
-            localStorage.setItem('roulette_disable_anims', disableAnimationsCheck.checked);
-        });
-
-        statsToggle.addEventListener('click', () => {
-            const totalGames = wins + losses;
-            const winRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : 0;
-            totalWinsText.textContent = `WINS: ${wins}`;
-            totalLossesText.textContent = `LOSSES: ${losses}`;
-            winRateText.textContent = `WIN RATE: ${winRate}%`;
-            statsOverlay.style.display = 'flex';
-        });
-
-        closeStats.addEventListener('click', () => statsOverlay.style.display = 'none');
-
-        statsOverlay.addEventListener('mousedown', (e) => {
-    if (e.target === statsOverlay) {
-        statsOverlay.style.display = 'none';
+    // --- UI CORE ---
+    function updateStatsUI() {
+        statsDisplay.textContent = `WINS: ${wins} | LOSSES: ${losses}`;
+        localStorage.setItem('roulette_wins', wins);
+        localStorage.setItem('roulette_losses', losses);
     }
-});
 
-function updateShellsUI() {
-    shellsDisplay.innerHTML = `<span class="live-count">${lives}L</span><span class="blank-count">${blanks}B</span>`;
-    
-    const probability = total > 0 ? Math.round((lives / total) * 100) : 0;
-    luckMeter.textContent = `RISK: ${probability}%`;
-    
-    luckMeter.classList.remove('high-risk', 'med-risk');
+    function updateShellsUI() {
+        shellsDisplay.innerHTML = `<span class="live-count">${lives}L</span><span class="blank-count">${blanks}B</span>`;
+        const probability = total > 0 ? Math.round((lives / total) * 100) : 0;
+        luckMeter.textContent = `RISK: ${probability}%`;
+        luckMeter.classList.remove('high-risk', 'med-risk');
+        if (probability >= 51) luckMeter.classList.add('high-risk');
+        else if (probability === 50) luckMeter.classList.add('med-risk');
+    }
 
-    if (probability >= 51) {
-        luckMeter.classList.add('high-risk');
-    } else if (probability === 50) {
-        luckMeter.classList.add('med-risk');
-    } 
+    function updateTurnVisuals() {
+        // In multiplayer, 'player' is always the local user.
+        if (isPlayerTurn) {
+            playerBtn.classList.add('active-turn');
+            dealerBtn.classList.remove('active-turn');
+            if (isMultiplayer) turnIndicator.classList.add('visible');
+        } else {
+            dealerBtn.classList.add('active-turn');
+            playerBtn.classList.remove('active-turn');
+            turnIndicator.classList.remove('visible');
+        }
+    }
+
+    async function showMessage(text, duration = 1200, isLive = false, color = 'flash-red') {
+        return new Promise(resolve => {
+            gameMsg.textContent = text;
+            gameMsg.classList.add('show-msg');
+            if (isLive) triggerLiveEffects(color);
+            setTimeout(() => {
+                gameMsg.classList.remove('show-msg');
+                setTimeout(resolve, 300);
+            }, duration);
+        });
+    }
+
+    function triggerLiveEffects(colorClass) {
+        if (disableAnimationsCheck.checked) return;
+        gameContainer.classList.add('shake-effect');
+        document.body.classList.add(colorClass);
+        setTimeout(() => {
+            gameContainer.classList.remove('shake-effect');
+            document.body.classList.remove(colorClass);
+        }, 400);
+    }
+
+    function triggerBlankEffects() {
+        if (disableAnimationsCheck.checked) return;
+        gameContainer.classList.add('blank-shake-effect');
+        setTimeout(() => { gameContainer.classList.remove('blank-shake-effect'); }, 150);
+    }
+
+    // --- MULTIPLAYER SETUP ---
+    function setupPeer(id = null) {
+        peer = new Peer(id, { debug: 1 });
+        peer.on('open', (openedId) => {
+            if (isHost) {
+                lobbyStatus.innerHTML = `ROOM CODE: <span style="color:white; cursor:pointer;" onclick="navigator.clipboard.writeText('${openedId}')">${openedId}</span><br><span class="copy-hint">CLICK TO COPY</span>`;
+            }
+        });
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupConnHandlers();
+            if (isHost) {
+                lobbyStatus.textContent = "PLAYER CONNECTED! STARTING...";
+                setTimeout(startMultiplayerGame, 1500);
+            }
+        });
+        peer.on('error', (err) => { console.error(err); resetToMain(); });
+    }
+
+    function setupConnHandlers() {
+        conn.on('data', (data) => {
+            if (data.type === 'INIT_ROUND') {
+                lives = data.lives;
+                blanks = data.blanks;
+                total = lives + blanks;
+                isPlayerTurn = data.isPlayerTurn;
+                currentRound = data.round;
+                beginGameUI();
+            } else if (data.type === 'SHOT_RESULT') {
+                handleRemoteShot(data);
+            } else if (data.type === 'DISCONNECT') {
+                alert("Opponent left.");
+                location.reload();
+            }
+        });
+    }
+
+    function startMultiplayerGame() {
+        currentRound = 1;
+        initMultiRound();
+    }
+
+    function initMultiRound() {
+        lives = 1;
+        blanks = Math.floor(Math.random() * 4) + 1;
+        total = lives + blanks;
+        isPlayerTurn = true; // Host starts
+        
+        conn.send({
+            type: 'INIT_ROUND',
+            lives: lives,
+            blanks: blanks,
+            round: currentRound,
+            isPlayerTurn: false // Guest sees it as not their turn
+        });
+        beginGameUI();
+    }
+
+    function beginGameUI() {
+        isProcessing = false; // Reset lock
+        canBackOut = true;
+        startScreen.classList.add('hidden');
+        gameContainer.style.display = 'flex';
+        setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
+        updateStatsUI();
+        roundCounter.textContent = `ROUND #${currentRound}`;
+        backOutBtn.classList.remove('hidden');
+        if (isMultiplayer) {
+            dealerBtn.textContent = "OPPONENT";
+            playerBtn.textContent = "YOU";
+        }
+        updateShellsUI();
+        updateTurnVisuals();
+    }
+
+    // --- ACTION LOGIC ---
+    async function shoot(target) {
+        if (isProcessing || !isPlayerTurn || gameMsg.classList.contains('show-msg')) return;
+        
+        isProcessing = true; // Lock local input
+        const isLive = Math.random() < (lives / total);
+
+        if (isMultiplayer) {
+            conn.send({ type: 'SHOT_RESULT', target: target, isLive: isLive });
+        }
+        processShotResult(target, isLive, false);
+    }
+
+    function handleRemoteShot(data) {
+        // Invert: if they shot 'player' (themselves), it's 'dealer' (opponent) to us.
+        const localTarget = data.target === 'player' ? 'dealer' : 'player';
+        processShotResult(localTarget, data.isLive, true);
+    }
+
+async function processShotResult(target, isLive, isRemote) {
+    isProcessing = true;
+    canBackOut = false;
+    backOutBtn.classList.add('hidden');
+    turnIndicator.classList.remove('visible');
+
+    if (isLive) {
+        lives--; 
+        total--; 
+        updateShellsUI();
+
+        if (target === 'dealer') {
+            wins++; 
+            showStatPop('win');
+            await showMessage("LIVE! " + (isRemote ? "THEY HIT THEMSELVES" : "YOU HIT THEM"), 1200, true, 'flash-green');
+        } else {
+            losses++; 
+            showStatPop('loss');
+            await showMessage("LIVE! " + (isRemote ? "THEY HIT YOU" : "YOU HIT YOURSELF"), 1200, true, 'flash-red');
+        }
+        
+        updateStatsUI();
+        currentRound++;
+
+        if (isMultiplayer) {
+            if (isHost) setTimeout(initMultiRound, 1500);
+        } else {
+            initRound(); 
+        }
+    } else {
+        blanks--; 
+        total--; 
+        updateShellsUI();
+        triggerBlankEffects();
+        await showMessage("BLANK.", 800);
+        
+        isPlayerTurn = (target === 'player');
+        
+        isProcessing = false;
+        updateTurnVisuals();
+
+        if (total > 0) {
+            backOutBtn.classList.remove('hidden');
+            canBackOut = true;
+        }
+
+        if (!isMultiplayer && !isPlayerTurn) setTimeout(dealerAI, 1000);
+    }
 }
+
+    // --- SINGLE PLAYER FALLBACK ---
+    function initRound() {
+        lives = 1; blanks = Math.floor(Math.random() * 4) + 1; total = lives + blanks;
+        isPlayerTurn = true;
+        beginGameUI();
+    }
+
+    async function dealerAI() {
+        if (total === 0 || isMultiplayer) return;
+        await showMessage("DEALER IS DECIDING...", 800);
+        const choice = Math.random() < 0.5 ? 'self' : 'player';
+        const isLive = Math.random() < (lives / total);
+        
+        if (choice === 'self') {
+            await showMessage("DEALER POINTS AT ITSELF...");
+            processShotResult('dealer', isLive, true);
+        } else {
+            await showMessage("DEALER POINTS AT YOU...");
+            processShotResult('player', isLive, true);
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    startButton.addEventListener('click', () => {
+        isMultiplayer = false;
+        currentRound = 1;
+        initRound();
+    });
+
+    multiBtn.addEventListener('click', () => {
+        startButton.classList.add('hidden');
+        multiBtn.classList.add('hidden');
+        multiMenu.style.display = 'flex';
+    });
+
+    hostBtn.addEventListener('click', () => {
+        isHost = true; isMultiplayer = true;
+        hostBtn.classList.add('hidden'); joinBtn.classList.add('hidden');
+        const code = Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => (b % 36).toString(36).toUpperCase()).join('');
+        setupPeer(code);
+    });
+
+    joinBtn.addEventListener('click', () => {
+        hostBtn.classList.add('hidden'); joinBtn.classList.add('hidden');
+        joinContainer.classList.remove('hidden');
+    });
+
+    confirmJoin.addEventListener('click', () => {
+        const code = joinInput.value.toUpperCase();
+        if (code.length !== 4) return;
+        isHost = false; isMultiplayer = true;
+        setupPeer();
+        peer.on('open', () => {
+            conn = peer.connect(code);
+            setupConnHandlers();
+        });
+    });
+
+    dealerBtn.addEventListener('click', () => shoot('dealer'));
+    playerBtn.addEventListener('click', () => shoot('player'));
+    multiBack.addEventListener('click', () => location.reload());
+    
+    backOutBtn.addEventListener('click', () => {
+        if (canBackOut) {
+            if (isMultiplayer && conn) conn.send({ type: 'DISCONNECT' });
+            location.reload();
+        }
+    });
+
+    statsToggle.addEventListener('click', () => {
+        const totalGames = wins + losses;
+        const winRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : 0;
+        totalWinsText.textContent = `WINS: ${wins}`;
+        totalLossesText.textContent = `LOSSES: ${losses}`;
+        winRateText.textContent = `WIN RATE: ${winRate}%`;
+        statsOverlay.style.display = 'flex';
+    });
+
+    closeStats.addEventListener('click', () => statsOverlay.style.display = 'none');
+
+    function showStatPop(type) {
+        const statsRect = statsDisplay.getBoundingClientRect();
+        const pop = document.createElement('div');
+        pop.textContent = "+1";
+        pop.className = `stat-pop ${type === 'win' ? 'pop-win' : 'pop-loss'}`;
+        pop.style.left = (statsRect.left + (type === 'win' ? 30 : statsRect.width - 30)) + 'px';
+        pop.style.top = (statsRect.bottom + 5) + 'px';
+        document.body.appendChild(pop);
+        setTimeout(() => pop.remove(), 1000);
+    }
     </script>
 </body>
 </html>
