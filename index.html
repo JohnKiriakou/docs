@@ -200,6 +200,63 @@
     opacity: 0;
 }
 
+@media (max-width: 600px) {
+    #start-button { font-size: 3rem; }
+    .actor-label { font-size: 2.5rem; }
+    #shells-display { font-size: 4rem; gap: 15px; }
+    
+    #stats { 
+        top: 10px; 
+        right: 15px; 
+        font-size: 0.8rem; 
+    }
+    
+    #luck-meter { 
+        top: 40px;
+        font-size: 1.2rem; 
+    }
+
+    #stats-toggle {
+        top: 10px;
+        right: 15px;
+        font-size: 1.2rem;
+    }
+
+    #back-out {
+        bottom: 15px;
+        left: 15px;
+        font-size: 1.2rem;
+    }
+
+    #round-counter {
+        bottom: 15px;
+        font-size: 1.2rem;
+    }
+
+    #disable-animations-container {
+        bottom: 50px;
+        right: 15px;
+        font-size: 0.9rem;
+    }
+
+    #game-container {
+        gap: 10px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    #game-msg {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-height: 500px) {
+    #game-container { gap: 5px; }
+    .actor-label { font-size: 2rem; }
+    #shells-display { font-size: 3rem; }
+    #luck-meter { top: 10px; left: 20px; transform: none; }
+}
+
 .high-risk { color: var(--live-red) !important; text-shadow: 0 0 10px var(--live-red); }
 .med-risk { color: var(--yellow) !important; text-shadow: 0 0 10px var(--yellow); }
     </style>
