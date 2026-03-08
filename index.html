@@ -421,7 +421,7 @@
                     await showMessage("LIVE. YOU WIN", 1200, true, 'flash-green');
                 } else {
                     losses++; showStatPop('loss');
-                    await showMessage(total === 0 && lives === 0 ? "WHY?" : "LIVE. YOU LOSE.", 1200, true, 'flash-red');
+                    await showMessage(total === 0 && lives === 0 ? "WHY?" : "LIVE. YOU LOSE.", total === 0 && lives === 0 ? 2200 : 1200, true, 'flash-red');
                 }
                 updateStatsUI();
                 currentRound++;
