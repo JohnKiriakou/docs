@@ -13,6 +13,7 @@
             --text-light-grey: #888;
             --text-white: #fff;
             --live-red: #ff0000;
+            --yellow: #ffff00;
             --outline: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
         }
 
@@ -20,154 +21,219 @@
             background-color: var(--bg-color);
             color: var(--text-light-grey);
             font-family: 'Montserrat', sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            user-select: none;
+            margin: 0; padding: 0;
+            height: 100vh; width: 100vw;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; user-select: none;
             transition: background-color 0.1s ease;
         }
 
         #game-container {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            width: 100%;
-            opacity: 0;
-            transition: opacity 0.8s ease;
-            gap: 20px;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            height: 100%; width: 100%; opacity: 0; transition: opacity 0.8s ease; gap: 20px;
         }
 
-        #game-container.visible {
-            display: flex;
-            opacity: 1;
-        }
+        #game-container.visible { display: flex; opacity: 1; }
 
         button, .actor-label {
-            background: transparent;
-            border: none;
-            cursor: pointer;
+            background: transparent; border: none; cursor: pointer;
             transition: color 0.3s ease, transform 0.2s ease, opacity 0.3s;
-            outline: none;
-            color: var(--text-light-grey);
-            font-family: 'Bebas Neue', sans-serif;
-            text-align: center;
+            outline: none; color: var(--text-light-grey);
+            font-family: 'Bebas Neue', sans-serif; text-align: center;
         }
 
-        button:hover:not(:disabled), .actor-label:hover {
-            color: var(--text-white);
-        }
+        button:hover:not(:disabled), .actor-label:hover { color: var(--text-white); }
 
-        #start-button {
-            font-size: 5rem;
-            letter-spacing: 5px;
-        }
+        #start-button { font-size: 5rem; letter-spacing: 5px; }
+        .actor-label { font-size: 4rem; letter-spacing: 3px; width: 100%; }
 
-        .actor-label {
-            font-size: 4rem;
-            letter-spacing: 3px;
-            width: 100%;
-        }
+        .active-turn { color: var(--text-white); text-decoration: underline; animation: pulse 1.5s infinite; }
 
-        .active-turn {
-            color: var(--text-white);
-            text-decoration: underline;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         #game-msg {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 2rem;
-            color: var(--text-white);
-            height: 3rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            width: 100%;
+            font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--text-white);
+            height: 3rem; display: flex; align-items: center; justify-content: center;
+            text-align: center; opacity: 0; transition: opacity 0.2s ease; width: 100%;
         }
 
-        #shells-display {
-            font-size: 6rem;
-            display: flex;
-            gap: 30px;
-        }
-
+        #shells-display { font-size: 6rem; display: flex; gap: 30px; }
         .live-count { color: var(--live-red); text-shadow: var(--outline); }
         .blank-count { color: var(--text-grey); text-shadow: var(--outline); }
 
-        #back-out {
-            position: absolute; bottom: 30px; left: 30px;
-            font-size: 1.5rem; letter-spacing: 1px;
-        }
-
-        #stats {
-            position: absolute; top: 25px; right: 35px;
-            font-size: 1rem; font-weight: bold; color: var(--text-grey);
-        }
+        #back-out { position: absolute; bottom: 30px; left: 30px; font-size: 1.5rem; letter-spacing: 1px; }
+        #stats { position: absolute; top: 25px; right: 35px; font-size: 1rem; font-weight: bold; color: var(--text-grey); }
 
         .hidden { display: none !important; }
         .show-msg { opacity: 1 !important; }
+        #start-screen { display: flex; flex-direction: column; align-items: center; }
 
-        #start-screen { display: flex; }
-
-        /* Animations */
         @keyframes shake {
             0% { transform: translate(1px, 1px) rotate(0deg); }
             10% { transform: translate(-1px, -2px) rotate(-1deg); }
             20% { transform: translate(-3px, 0px) rotate(1deg); }
             30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
             100% { transform: translate(1px, -2px) rotate(-1deg); }
         }
+        .shake-effect { animation: shake 0.4s; animation-iteration-count: 1; }
+        .flash-red { background-color: rgba(255, 0, 0, 0.3) !important; }
+        .flash-green { background-color: rgba(0, 128, 21, 0.4) !important; } 
 
-        .shake-effect {
-            animation: shake 0.4s;
+        @keyframes blankShake {
+            0% { transform: translate(0px, 0px) rotate(0deg); }
+            25% { transform: translate(1px, 1px) rotate(0.1deg); }
+            50% { transform: translate(-1px, 0px) rotate(-0.1deg); }
+            75% { transform: translate(1px, -1px) rotate(0.1deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+
+        .blank-shake-effect {
+            animation: blankShake 0.15s;
             animation-iteration-count: 1;
         }
 
-        .flash-red {
-            background-color: rgba(255, 0, 0, 0.3) !important;
+        #disable-animations-container {
+            position: absolute; 
+            bottom: 30px; 
+            right: 30px;
+            font-family: 'Bebas Neue', sans-serif; 
+            font-size: 1.2rem;
+            color: var(--text-grey); 
+            display: flex; 
+            align-items: center;
+            gap: 10px;
+            cursor: pointer; 
+            user-select: none; 
+            transition: color 0.3s ease;
+            line-height: 1;
         }
+
+        #disable-animations-container:has(#disable-animations:checked) {
+            color: var(--text-white);
+        }
+
+        #disable-animations {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px; 
+            height: 16px;
+            border: 2px solid var(--text-grey);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            
+            margin: 0; 
+            transform: translateY(-1px);
+        }
+
+        #disable-animations-container:hover #disable-animations {
+            border-color: var(--text-white);
+        }
+
+        #disable-animations:checked {
+            background-color: var(--text-white);
+            border-color: var(--text-white) !important;
+        }
+
+        #disable-animations:checked::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 8px; height: 8px;
+            background: var(--bg-color);
+        }
+
+        #disable-animations-container:has(#disable-animations:checked) {
+            color: var(--text-white);
+        }
+
+        #disable-animations:checked {
+            background-color: var(--text-white);
+            border-color: var(--text-white);
+        }
+
+        .stat-pop {
+            position: absolute; font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem;
+            pointer-events: none; animation: fadeUp 1s ease-out forwards; z-index: 100;
+        }
+        .pop-win { color: #00ff00; }
+        .pop-loss { color: #ff0000; }
+        @keyframes fadeUp { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(20px); } }
+
+        #stats-toggle { position: absolute; top: 25px; right: 35px; font-size: 1.5rem; letter-spacing: 1px; }
+        #stats-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); justify-content: center; align-items: center;
+            flex-direction: column; z-index: 1000; font-family: 'Bebas Neue', sans-serif;
+        }
+        #stats-content { text-align: center; color: var(--text-white); }
+        #stats-content h2 { font-size: 4rem; margin-bottom: 10px; }
+        #stats-content p { font-size: 2rem; color: var(--text-light-grey); margin: 5px; }
+
+        #luck-meter {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--text-grey);
+    letter-spacing: 2px;
+    transition: color 0.3s ease;
+}
+
+#round-counter {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--text-grey);
+    letter-spacing: 2px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+#game-container:has(#back-out.hidden) #round-counter {
+    opacity: 0;
+}
+
+.high-risk { color: var(--live-red) !important; text-shadow: 0 0 10px var(--live-red); }
+.med-risk { color: var(--yellow) !important; text-shadow: 0 0 10px var(--yellow); }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
+        <button id="stats-toggle">STATS</button>
         <button id="start-button">START</button>
     </div>
 
     <div id="game-container">
+        <div id="luck-meter">LUCK: 0%</div>
         <div id="stats">WINS: 0 | LOSSES: 0</div>
-        
         <div id="dealer" class="actor-label">DEALER</div>
-        
         <div id="game-msg"></div>
-
         <div id="shells-display"></div>
-        
         <div id="player" class="actor-label">PLAYER</div>
-
+        <div id="round-counter">ROUND #1</div>
         <button id="back-out">BACK OUT</button>
+    </div>
+
+    <label id="disable-animations-container">
+        <input type="checkbox" id="disable-animations"> DISABLE ANIMATIONS
+    </label>
+
+    <div id="stats-overlay">
+        <div id="stats-content">
+            <h2>STATS</h2>
+            <p id="total-wins">WINS: 0</p>
+            <p id="total-losses">LOSSES: 0</p>
+            <p id="win-rate">WIN RATE: 0%</p>
+            <button id="close-stats">CLOSE</button>
+        </div>
     </div>
 
     <script>
@@ -180,6 +246,18 @@
         const backOutBtn = document.getElementById('back-out');
         const statsDisplay = document.getElementById('stats');
         const gameMsg = document.getElementById('game-msg');
+        const disableAnimationsCheck = document.getElementById('disable-animations');
+        const statsToggle = document.getElementById('stats-toggle');
+        const statsOverlay = document.getElementById('stats-overlay');
+        const closeStats = document.getElementById('close-stats');
+        const totalWinsText = document.getElementById('total-wins');
+        const totalLossesText = document.getElementById('total-losses');
+        const winRateText = document.getElementById('win-rate');
+        const luckMeter = document.getElementById('luck-meter');
+        let currentRound = 1;
+        const roundCounter = document.getElementById('round-counter');
+
+        disableAnimationsCheck.checked = localStorage.getItem('roulette_disable_anims') === 'true';
 
         let lives = 0, blanks = 0, total = 0, canBackOut = true;
         let wins = parseInt(localStorage.getItem('roulette_wins')) || 0;
@@ -193,28 +271,48 @@
             localStorage.setItem('roulette_losses', losses);
         }
 
-        function triggerLiveEffects() {
+        function triggerLiveEffects(colorClass = 'flash-red') {
+            if (disableAnimationsCheck.checked) return;
             gameContainer.classList.add('shake-effect');
-            document.body.classList.add('flash-red');
-            
+            document.body.classList.add(colorClass);
             setTimeout(() => {
                 gameContainer.classList.remove('shake-effect');
-                document.body.classList.remove('flash-red');
+                document.body.classList.remove(colorClass);
             }, 400);
         }
 
-        function showMessage(text, duration = 1200, isLive = false) {
+        function triggerBlankEffects() {
+            if (disableAnimationsCheck.checked) return;
+
+            gameContainer.classList.add('blank-shake-effect');
+
+            setTimeout(() => {
+                gameContainer.classList.remove('blank-shake-effect');
+            }, 150);
+        }
+
+        function showMessage(text, duration = 1200, isLive = false, color = 'flash-red') {
             return new Promise(resolve => {
                 gameMsg.textContent = text;
                 gameMsg.classList.add('show-msg');
-                
-                if (isLive) triggerLiveEffects();
-
+                if (isLive) triggerLiveEffects(color);
                 setTimeout(() => {
                     gameMsg.classList.remove('show-msg');
                     setTimeout(resolve, 300);
                 }, duration);
             });
+        }
+
+        function showStatPop(type) {
+            const statsRect = statsDisplay.getBoundingClientRect();
+            const pop = document.createElement('div');
+            pop.textContent = "+1";
+            pop.className = `stat-pop ${type === 'win' ? 'pop-win' : 'pop-loss'}`;
+            const horizontalOffset = type === 'win' ? 30 : statsRect.width - 30;
+            pop.style.left = (statsRect.left + horizontalOffset) + 'px';
+            pop.style.top = (statsRect.bottom + 5) + 'px';
+            document.body.appendChild(pop);
+            setTimeout(() => pop.remove(), 1000);
         }
 
         function initRound() {
@@ -224,16 +322,16 @@
             canBackOut = true;
             isPlayerTurn = true;
             isProcessing = false;
+            
+            roundCounter.textContent = `ROUND #${currentRound}`;
+            
             backOutBtn.classList.remove('hidden');
             updateTurnVisuals();
             updateShellsUI();
         }
 
         function updateShellsUI() {
-            shellsDisplay.innerHTML = `
-                <span class="live-count">${lives}L</span>
-                <span class="blank-count">${blanks}B</span>
-            `;
+            shellsDisplay.innerHTML = `<span class="live-count">${lives}L</span><span class="blank-count">${blanks}B</span>`;
         }
 
         function updateTurnVisuals() {
@@ -249,33 +347,39 @@
         async function shoot(target) {
             if (isProcessing || !isPlayerTurn || gameMsg.classList.contains('show-msg')) return;
             
-            isProcessing = true;
             canBackOut = false;
             backOutBtn.classList.add('hidden');
-
+            
             const isLive = Math.random() < (lives / total);
 
             if (isLive) {
+                isProcessing = true;
+                
+                lives--; 
+                total--; 
+                updateShellsUI(); 
+
                 if (target === 'dealer') {
-                    wins++;
-                    await showMessage("BANG! DEALER DOWN", 1200, true);
+                    wins++; showStatPop('win');
+                    await showMessage("LIVE. YOU WIN", 1200, true, 'flash-green');
                 } else {
-                    losses++;
-                    await showMessage("BANG! YOU ARE DOWN", 1200, true);
+                    losses++; showStatPop('loss');
+                    await showMessage(total === 0 && lives === 0 ? "WHY?" : "LIVE. YOU LOSE.", 1200, true, 'flash-red');
                 }
                 updateStatsUI();
+                currentRound++;
                 initRound();
             } else {
-                blanks--;
-                total--;
-                updateShellsUI();
-
+                blanks--; total--; updateShellsUI();
+                triggerBlankEffects();
+                
                 if (target === 'player') {
-                    await showMessage("CLICK... BLANK. BONUS TURN!");
-                    isProcessing = false;
+                    showMessage("BLANK. YOUR TURN.", 600); 
+                    isProcessing = false; 
                 } else {
-                    await showMessage("CLICK... BLANK. DEALER'S TURN.");
-                    isPlayerTurn = false;
+                    isProcessing = true; 
+                    await showMessage("BLANK. DEALER'S TURN.", 1000);
+                    isPlayerTurn = false; 
                     updateTurnVisuals();
                     setTimeout(dealerAI, 1000);
                 }
@@ -284,46 +388,42 @@
 
         async function dealerAI() {
             if (total === 0) { initRound(); return; }
-            
             await showMessage("DEALER IS DECIDING...", 800);
-            
             const choice = Math.random() < 0.5 ? 'self' : 'player';
             const isLive = Math.random() < (lives / total);
 
             if (choice === 'self') {
                 await showMessage("DEALER POINTS AT ITSELF...");
                 if (isLive) {
-                    wins++;
-                    await showMessage("BANG! DEALER DOWN", 1200, true);
-                    updateStatsUI();
-                    initRound();
+                    lives--; total--; updateShellsUI();
+                    wins++; showStatPop('win');
+                    await showMessage("LIVE. YOU WIN", 1200, true, 'flash-green');
+                    updateStatsUI(); currentRound++; initRound();
                 } else {
-                    blanks--;
-                    total--;
-                    updateShellsUI();
-                    await showMessage("CLICK... BLANK. DEALER GOES AGAIN!");
+                    blanks--; total--; updateShellsUI();
+                    triggerBlankEffects();
+                    await showMessage("BLANK. DEALER'S TURN.");
                     setTimeout(dealerAI, 1000);
                 }
             } else {
                 await showMessage("DEALER POINTS AT YOU...");
                 if (isLive) {
-                    losses++;
-                    await showMessage("BANG! YOU ARE DOWN", 1200, true);
-                    updateStatsUI();
-                    initRound();
+                    lives--; total--; updateShellsUI();
+                    losses++; showStatPop('loss');
+                    await showMessage("LIVE. YOU LOSE.", 1200, true, 'flash-red');
+                    updateStatsUI(); initRound();
                 } else {
-                    blanks--;
-                    total--;
-                    updateShellsUI();
-                    await showMessage("CLICK... BLANK. YOUR TURN.");
-                    isPlayerTurn = true;
-                    isProcessing = false;
-                    updateTurnVisuals();
+                    blanks--; total--; updateShellsUI();
+                    triggerBlankEffects();
+                    await showMessage("BLANK. YOUR TURN.");
+                    isPlayerTurn = true; isProcessing = false; updateTurnVisuals();
                 }
             }
         }
 
         startButton.addEventListener('click', () => {
+            currentRound = 1;
+            roundCounter.textContent = `ROUND #${currentRound}`;
             startScreen.classList.add('hidden');
             gameContainer.style.display = 'flex';
             setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
@@ -343,6 +443,42 @@
                 }, 800);
             }
         });
+
+        disableAnimationsCheck.addEventListener('change', () => {
+            localStorage.setItem('roulette_disable_anims', disableAnimationsCheck.checked);
+        });
+
+        statsToggle.addEventListener('click', () => {
+            const totalGames = wins + losses;
+            const winRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : 0;
+            totalWinsText.textContent = `WINS: ${wins}`;
+            totalLossesText.textContent = `LOSSES: ${losses}`;
+            winRateText.textContent = `WIN RATE: ${winRate}%`;
+            statsOverlay.style.display = 'flex';
+        });
+
+        closeStats.addEventListener('click', () => statsOverlay.style.display = 'none');
+
+        statsOverlay.addEventListener('mousedown', (e) => {
+    if (e.target === statsOverlay) {
+        statsOverlay.style.display = 'none';
+    }
+});
+
+function updateShellsUI() {
+    shellsDisplay.innerHTML = `<span class="live-count">${lives}L</span><span class="blank-count">${blanks}B</span>`;
+    
+    const probability = total > 0 ? Math.round((lives / total) * 100) : 0;
+    luckMeter.textContent = `RISK: ${probability}%`;
+    
+    luckMeter.classList.remove('high-risk', 'med-risk');
+
+    if (probability >= 51) {
+        luckMeter.classList.add('high-risk');
+    } else if (probability === 50) {
+        luckMeter.classList.add('med-risk');
+    } 
+}
     </script>
 </body>
 </html>
