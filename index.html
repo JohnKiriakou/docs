@@ -234,12 +234,6 @@
         font-size: 1.2rem;
     }
 
-    #disable-animations-container {
-        bottom: 50px;
-        right: 15px;
-        font-size: 0.9rem;
-    }
-
     #game-container {
         gap: 10px;
         padding: 20px;
@@ -319,13 +313,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 10px;
+    margin-top: 15px;
 }
 
-#disable-animations {
-    margin: 0;
-    cursor: pointer;
+#session-stats {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+#session-stats.visible {
+    opacity: 1;
+}
+
+.status-active {
+    color: var(--yellow) !important;
+    animation: pulse 1.5s infinite;
 }
 
     </style>
@@ -353,6 +358,7 @@
         <div id="turn-indicator">YOUR TURN</div>
         <div id="luck-meter">LUCK: 0%</div>
         <div id="stats">WINS: 0 | LOSSES: 0</div>
+        <div id="session-stats" class="hidden">SESSION SCORE: 0 - 0</div>
         <div id="dealer" class="actor-label">DEALER</div>
         <div id="game-msg"></div>
         <div id="shells-display"></div>
@@ -416,12 +422,15 @@
     let losses = parseInt(localStorage.getItem('roulette_losses')) || 0;
     let isPlayerTurn = true;
     let isProcessing = false;
+    let sessionWins = 0;
+    let sessionLosses = 0;
+    const sessionDisplay = document.getElementById('session-stats');
 
     disableAnimationsCheck.checked = localStorage.getItem('roulette_disable_anims') === 'true';
 
-    // --- UI CORE ---
     function updateStatsUI() {
         statsDisplay.textContent = `WINS: ${wins} | LOSSES: ${losses}`;
+        sessionDisplay.textContent = `SESSION: ${sessionWins} - ${sessionLosses}`;
         localStorage.setItem('roulette_wins', wins);
         localStorage.setItem('roulette_losses', losses);
     }
@@ -534,22 +543,29 @@
         beginGameUI();
     }
 
-    function beginGameUI() {
-        isProcessing = false; // Reset lock
-        canBackOut = true;
-        startScreen.classList.add('hidden');
-        gameContainer.style.display = 'flex';
-        setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
-        updateStatsUI();
-        roundCounter.textContent = `ROUND #${currentRound}`;
-        backOutBtn.classList.remove('hidden');
-        if (isMultiplayer) {
-            dealerBtn.textContent = "OPPONENT";
-            playerBtn.textContent = "YOU";
-        }
-        updateShellsUI();
-        updateTurnVisuals();
+function beginGameUI() {
+    isProcessing = false;
+    canBackOut = true;
+    startScreen.classList.add('hidden');
+    gameContainer.style.display = 'flex';
+    setTimeout(() => { gameContainer.classList.add('visible'); }, 50);
+    
+    if (isMultiplayer) {
+        sessionDisplay.classList.remove('hidden');
+    } else {
+        sessionDisplay.classList.add('hidden');
     }
+
+    updateStatsUI();
+    roundCounter.textContent = `ROUND #${currentRound}`;
+    backOutBtn.classList.remove('hidden');
+    if (isMultiplayer) {
+        dealerBtn.textContent = "OPPONENT";
+        playerBtn.textContent = "YOU";
+    }
+    updateShellsUI();
+    updateTurnVisuals();
+}
 
     // --- ACTION LOGIC ---
     async function shoot(target) {
@@ -577,16 +593,16 @@ async function processShotResult(target, isLive, isRemote) {
     turnIndicator.classList.remove('visible');
 
     if (isLive) {
-        lives--; 
-        total--; 
-        updateShellsUI();
+        lives--; total--; updateShellsUI();
 
         if (target === 'dealer') {
             wins++; 
+            if (isMultiplayer) sessionWins++; // Track current match wins
             showStatPop('win');
             await showMessage("LIVE! " + (isRemote ? "THEY HIT THEMSELVES" : "YOU HIT THEM"), 1200, true, 'flash-green');
         } else {
             losses++; 
+            if (isMultiplayer) sessionLosses++; // Track current match losses
             showStatPop('loss');
             await showMessage("LIVE! " + (isRemote ? "THEY HIT YOU" : "YOU HIT YOURSELF"), 1200, true, 'flash-red');
         }
@@ -660,6 +676,8 @@ async function processShotResult(target, isLive, isRemote) {
         hostBtn.classList.add('hidden'); joinBtn.classList.add('hidden');
         const code = Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => (b % 36).toString(36).toUpperCase()).join('');
         setupPeer(code);
+        sessionWins = 0;
+        sessionLosses = 0;
     });
 
     joinBtn.addEventListener('click', () => {
@@ -668,13 +686,52 @@ async function processShotResult(target, isLive, isRemote) {
     });
 
     confirmJoin.addEventListener('click', () => {
-        const code = joinInput.value.toUpperCase();
-        if (code.length !== 4) return;
-        isHost = false; isMultiplayer = true;
-        setupPeer();
+        const code = joinInput.value.toUpperCase().trim();
+        
+        if (code.length !== 4) {
+            lobbyStatus.textContent = "INVALID CODE (4 CHARS REQUIRED)";
+            return;
+        }
+
+        // --- VISUAL FEEDBACK START ---
+        confirmJoin.disabled = true;
+        confirmJoin.textContent = "CONNECTING...";
+        lobbyStatus.textContent = `LOCATING ROOM: ${code}...`;
+        lobbyStatus.classList.add('status-active');
+        lobbyStatus.classList.remove('hidden');
+        // ------------------------------
+
+        isHost = false; 
+        isMultiplayer = true;
+        sessionWins = 0;
+        sessionLosses = 0;
+
+        setupPeer(); // Initialize local peer
+
         peer.on('open', () => {
+            lobbyStatus.textContent = "PEER INITIALIZED. HANDSHAKING...";
+            
             conn = peer.connect(code);
             setupConnHandlers();
+
+            // Check if the connection actually opens
+            conn.on('open', () => {
+                lobbyStatus.textContent = "CONNECTED! WAITING FOR HOST...";
+            });
+        });
+
+        // Handle errors (like wrong code or timeout)
+        peer.on('error', (err) => {
+            confirmJoin.disabled = false;
+            confirmJoin.textContent = "GO";
+            lobbyStatus.classList.remove('status-active');
+            
+            if (err.type === 'peer-unavailable') {
+                lobbyStatus.textContent = "ROOM NOT FOUND. CHECK CODE.";
+            } else {
+                lobbyStatus.textContent = "CONNECTION FAILED.";
+                console.error(err);
+            }
         });
     });
 
