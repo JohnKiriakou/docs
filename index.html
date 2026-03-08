@@ -411,7 +411,6 @@
     const multiBack = document.getElementById('multi-back');
     const turnIndicator = document.getElementById('turn-indicator');
 
-    // --- GAME STATE ---
     let peer = null;
     let conn = null;
     let isMultiplayer = false;
@@ -445,7 +444,6 @@
     }
 
     function updateTurnVisuals() {
-        // In multiplayer, 'player' is always the local user.
         if (isPlayerTurn) {
             playerBtn.classList.add('active-turn');
             dealerBtn.classList.remove('active-turn');
@@ -457,35 +455,58 @@
         }
     }
 
-    async function showMessage(text, duration = 1200, isLive = false, color = 'flash-red') {
-        return new Promise(resolve => {
-            gameMsg.textContent = text;
-            gameMsg.classList.add('show-msg');
-            if (isLive) triggerLiveEffects(color);
-            setTimeout(() => {
-                gameMsg.classList.remove('show-msg');
-                setTimeout(resolve, 300);
-            }, duration);
-        });
-    }
-
-    function triggerLiveEffects(colorClass) {
-        if (disableAnimationsCheck.checked) return;
-        gameContainer.classList.add('shake-effect');
-        document.body.classList.add(colorClass);
+async function showMessage(text, duration = 1200, isLive = false, color = 'flash-red', prob = 0) {
+    return new Promise(resolve => {
+        gameMsg.textContent = text;
+        gameMsg.classList.add('show-msg');
+        
+        if (isLive) triggerLiveEffects(color, prob); 
+        
         setTimeout(() => {
-            gameContainer.classList.remove('shake-effect');
+            gameMsg.textContent = "";
+            gameMsg.classList.remove('show-msg');
+            setTimeout(resolve, 300);
+        }, duration);
+    });
+}
+
+    function triggerLiveEffects(colorClass, probability = 0) {
+        if (disableAnimationsCheck.checked) return;
+
+        const intensity = Math.max(1, (probability / 100) * 8);
+        
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes dynamicShake {
+                0% { transform: translate(${intensity}px, ${intensity}px); }
+                20% { transform: translate(-${intensity}px, -${intensity * 2}px); }
+                40% { transform: translate(-${intensity * 2}px, 0px); }
+                60% { transform: translate(${intensity * 2}px, ${intensity * 2}px); }
+                100% { transform: translate(${intensity}px, -${intensity * 2}px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        gameContainer.style.animation = 'dynamicShake 0.4s';
+        document.body.classList.add(colorClass);
+
+        playSound('shot_live.mp3');
+
+        setTimeout(() => {
+            gameContainer.style.animation = '';
             document.body.classList.remove(colorClass);
+            style.remove();
         }, 400);
     }
 
     function triggerBlankEffects() {
         if (disableAnimationsCheck.checked) return;
+        
+        playSound('shot_blank.mp3');
         gameContainer.classList.add('blank-shake-effect');
         setTimeout(() => { gameContainer.classList.remove('blank-shake-effect'); }, 150);
     }
 
-    // --- MULTIPLAYER SETUP ---
     function setupPeer(id = null) {
         peer = new Peer(id, { debug: 1 });
         peer.on('open', (openedId) => {
@@ -531,19 +552,20 @@
         lives = 1;
         blanks = Math.floor(Math.random() * 4) + 1;
         total = lives + blanks;
-        isPlayerTurn = true; // Host starts
+        isPlayerTurn = true;
         
         conn.send({
             type: 'INIT_ROUND',
             lives: lives,
             blanks: blanks,
             round: currentRound,
-            isPlayerTurn: false // Guest sees it as not their turn
+            isPlayerTurn: false
         });
         beginGameUI();
     }
 
 function beginGameUI() {
+    playSound('round_start.mp3');
     isProcessing = false;
     canBackOut = true;
     startScreen.classList.add('hidden');
@@ -567,11 +589,10 @@ function beginGameUI() {
     updateTurnVisuals();
 }
 
-    // --- ACTION LOGIC ---
     async function shoot(target) {
         if (isProcessing || !isPlayerTurn || gameMsg.classList.contains('show-msg')) return;
         
-        isProcessing = true; // Lock local input
+        isProcessing = true;
         const isLive = Math.random() < (lives / total);
 
         if (isMultiplayer) {
@@ -581,7 +602,6 @@ function beginGameUI() {
     }
 
     function handleRemoteShot(data) {
-        // Invert: if they shot 'player' (themselves), it's 'dealer' (opponent) to us.
         const localTarget = data.target === 'player' ? 'dealer' : 'player';
         processShotResult(localTarget, data.isLive, true);
     }
@@ -591,20 +611,21 @@ async function processShotResult(target, isLive, isRemote) {
     canBackOut = false;
     backOutBtn.classList.add('hidden');
     turnIndicator.classList.remove('visible');
+    const shotRisk = Math.round((lives / total) * 100);
 
     if (isLive) {
         lives--; total--; updateShellsUI();
 
         if (target === 'dealer') {
             wins++; 
-            if (isMultiplayer) sessionWins++; // Track current match wins
+            if (isMultiplayer) sessionWins++;
             showStatPop('win');
-            await showMessage("LIVE! " + (isRemote ? "THEY HIT THEMSELVES" : "YOU HIT THEM"), 1200, true, 'flash-green');
+            await showMessage("LIVE! " + (isRemote ? "THEY HIT THEMSELVES" : "YOU HIT THEM"), 1200, true, 'flash-green', shotRisk);
         } else {
             losses++; 
-            if (isMultiplayer) sessionLosses++; // Track current match losses
+            if (isMultiplayer) sessionLosses++;
             showStatPop('loss');
-            await showMessage("LIVE! " + (isRemote ? "THEY HIT YOU" : "YOU HIT YOURSELF"), 1200, true, 'flash-red');
+            await showMessage("LIVE! " + (isRemote ? "THEY HIT YOU" : "YOU HIT YOURSELF"), 1200, true, 'flash-red', shotRisk);
         }
         
         updateStatsUI();
@@ -636,11 +657,15 @@ async function processShotResult(target, isLive, isRemote) {
     }
 }
 
-    // --- SINGLE PLAYER FALLBACK ---
     function initRound() {
         lives = 1; blanks = Math.floor(Math.random() * 4) + 1; total = lives + blanks;
         isPlayerTurn = true;
         beginGameUI();
+    }
+
+    function playSound(filename) {
+        const audio = new Audio(`sounds/${filename}`);
+        audio.play().catch(e => console.log("Audio play blocked/failed:", e));
     }
 
     async function dealerAI() {
@@ -658,7 +683,6 @@ async function processShotResult(target, isLive, isRemote) {
         }
     }
 
-    // --- EVENT LISTENERS ---
     startButton.addEventListener('click', () => {
         isMultiplayer = false;
         currentRound = 1;
@@ -693,20 +717,18 @@ async function processShotResult(target, isLive, isRemote) {
             return;
         }
 
-        // --- VISUAL FEEDBACK START ---
         confirmJoin.disabled = true;
         confirmJoin.textContent = "CONNECTING...";
         lobbyStatus.textContent = `LOCATING ROOM: ${code}...`;
         lobbyStatus.classList.add('status-active');
         lobbyStatus.classList.remove('hidden');
-        // ------------------------------
 
         isHost = false; 
         isMultiplayer = true;
         sessionWins = 0;
         sessionLosses = 0;
 
-        setupPeer(); // Initialize local peer
+        setupPeer();
 
         peer.on('open', () => {
             lobbyStatus.textContent = "PEER INITIALIZED. HANDSHAKING...";
@@ -714,13 +736,11 @@ async function processShotResult(target, isLive, isRemote) {
             conn = peer.connect(code);
             setupConnHandlers();
 
-            // Check if the connection actually opens
             conn.on('open', () => {
                 lobbyStatus.textContent = "CONNECTED! WAITING FOR HOST...";
             });
         });
 
-        // Handle errors (like wrong code or timeout)
         peer.on('error', (err) => {
             confirmJoin.disabled = false;
             confirmJoin.textContent = "GO";
